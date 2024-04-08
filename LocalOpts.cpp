@@ -19,12 +19,12 @@ using namespace llvm;
 -------------------------IDENTITA' ALGEBRICA MUL-------------------------
 la funzione viene chiamata se viene trovato 1 in una moltiplicazione 
 o 0 in un'addizione e ci si trova davanti a un caso di identità algebrica 
-a=b*1=1*b->a=b oppure a=b+0=0+b->a=b quindi possiamo ottimizzare 
-l'applicazione come assegnamento.*/
+a=b*1=1*b->a=b oppure a=b+0=0+b->a=b quindi possiamo sostituire 
+l'operazione in assegnamento.*/
 /*
 -------------------------MULTI INSTRUCTION OPTIMIZATION-------------------
 la funzione viene chiamata se viene trovata una sottrazione tra una variabile(minuendo) e una 
-costante(sottraendo) e la variabile viene creata da una addizione si tra una 
+costante(sottraendo) e la variabile viene creata da una addizione tra una 
 variabile e una costante si verifica se le costanti di addizione e sottrazioni
 sono equivalenti per trasformare la sottrazione in un assegnamento.
 */
@@ -41,8 +41,7 @@ void create_assign(Instruction &i,Value *operand, int nOperand){
 	/*creazione di un'istruzione per leggere dalla memoria un valore di tipo inType che si trova in alloc. Questa
 	istruzione viene inserita dopo instr.*/
 	LoadInst *l=new LoadInst(opType,alloc,Twine(*"v"),&i);
-	/*tutti gli usi di i sono sostituiti da l in caso ci fosse un'identità algebrica oppure saranno sostituiti gli 
-	usi di i2 in caso si stesse gestendo una Multi Instruction Optimization.*/
+	//tutti gli usi di i sono sostituiti da l
 	i.replaceAllUsesWith(l);
 }
 /*
@@ -55,7 +54,7 @@ sottrazione invece che una moltiplicazione.*/
 void create_shift(Instruction &i, Value * operand, int operation, APInt val, int nOp){
 	/*è necessario il tipo degli operandi per poter creare variabili adeguate.*/
 	Type* opType=operand->getType();
-	/*oggetti di tipo istruzione per utili a sostituire la moltiplicazione.*/
+	/*oggetti di tipo istruzione per sostituire moltiplicazioneo o divisione.*/
 	Instruction* newInst;
 	Instruction* newInst2; 
 	/*variabile in cui dovrà essere inserito il valore costante.*/
@@ -71,7 +70,7 @@ void create_shift(Instruction &i, Value * operand, int operation, APInt val, int
 			che sara' poi shiftato di v posizioni.*/
 			newInst = BinaryOperator::Create(Instruction::Shl, i.getOperand(nOp),v);
 			/*la nuova istruzione viene inserita dopo quella vecchia, gli usi della vecchia istruzione
-			sono rimpiazzati e la vecchia istruzione viene aggiunta al vettore delle istruzioni da cancellare.*/
+			sono rimpiazzati.*/
 			newInst->insertAfter(&i);
 			//gli usi della vecchia istruzione saranno sostituiti con il risultato dello shift.
 			i.replaceAllUsesWith(newInst);
@@ -84,7 +83,7 @@ void create_shift(Instruction &i, Value * operand, int operation, APInt val, int
 			newInst2= BinaryOperator::Create(Instruction::Sub, newInst,i.getOperand(nOp));
 			newInst->insertAfter(&i);
 			newInst2->insertAfter(newInst);
-			//gli usi della vecchia sono sostituiti con il risultato della sottrazione.
+			//gli usi della vecchia istruzione sono sostituiti con il risultato della sottrazione.
 			i.replaceAllUsesWith(newInst2);
 			break;
 		case 3:
@@ -95,7 +94,7 @@ void create_shift(Instruction &i, Value * operand, int operation, APInt val, int
 			newInst2= BinaryOperator::Create(Instruction::Add, newInst,i.getOperand(nOp));
 			newInst->insertAfter(&i);
 			newInst2->insertAfter(newInst);
-			//gli usi della vecchia sono sostituiti con il risultato della addizione.
+			//gli usi della vecchia istruzione sono sostituiti con il risultato della addizione.
 			i.replaceAllUsesWith(newInst2);
 			break;
 		case 4:
@@ -104,7 +103,7 @@ void create_shift(Instruction &i, Value * operand, int operation, APInt val, int
 			//viene creato un logic shift right per la divisione
 			newInst = BinaryOperator::Create(Instruction::LShr, i.getOperand(0),v);
 			newInst->insertAfter(&i);
-			//gli usi della vecchia sono sostituiti con il risultato della divisione.
+			//gli usi della vecchia istruzione sono sostituiti con il risultato della divisione.
 			i.replaceAllUsesWith(newInst);
 			break;
 	}
@@ -137,7 +136,7 @@ bool runOnBasicBlock(BasicBlock &B) {
 					//se la costante ha valore 1 ci troviamo in un caso di identità algebrica.
 					if(i.isOne()){
 						create_assign(instr, operand, nOp);
-						//la vecchia istruzione viene messa in un vettore del 
+						//la vecchia istruzione viene messa nel vettore del 
 						del.push_back(&instr);
 					}
 					//se la costante ha come valore una potenza di due possiamo applicare la strength reduction.
@@ -189,7 +188,7 @@ bool runOnBasicBlock(BasicBlock &B) {
 				//si tenta il casting di operand in ConstantInt
 				if(ConstantInt *C = dyn_cast <ConstantInt>(operand)){
 					APInt i=C->getValue();
-					//se la costante ha come valore 0 possiamo applicare trasformarlo in assegnamento.
+					//se la costante ha come valore 0 possiamo trasformarlo in assegnamento.
 					if (i.isZero()){
 						create_assign(instr, operand, nOp);
 						del.push_back(&instr);
@@ -243,7 +242,7 @@ bool runOnBasicBlock(BasicBlock &B) {
 						std::ostringstream addrAdd;
 						addrAdd<<&ins;
 						std::string s2= addrAdd.str();
-						//se i due indirizzi combaciano si può procedere con la trasfromazione.
+						//se i due indirizzi combaciano si può procedere con la trasformazione.
 						if (s1==s2){
 							/*vengono estratti gli operandi della addizione e si verifica se le 
 							costanti di addizione e sottrazione combaciano in caso positivo si 
