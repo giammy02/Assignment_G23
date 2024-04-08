@@ -163,7 +163,7 @@ bool runOnBasicBlock(BasicBlock &B) {
 				nOp=0;
 			}
 		}
-		//verifica se l'istruzione attuale è una divisione
+		//verifica se l'istruzione attuale è una divisione.
 		else if(instr.getOpcodeName()=="sdiv"){
 			//itera gli operatori e assegna a operand il secondo operatore
 			for(auto *IterI= instr.op_begin(); IterI!=instr.op_end();IterI++){
