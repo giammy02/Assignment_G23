@@ -37,7 +37,6 @@ add_llvm_component_library(LLVMTransformUtils
   LCSSA.cpp
   LibCallsShrinkWrap.cpp
   Local.cpp
-  LocalOpts.cpp
   LoopInvariant.cpp
   LoopPeel.cpp
   LoopRotationUtils.cpp
@@ -47,7 +46,6 @@ add_llvm_component_library(LLVMTransformUtils
   LoopUnrollRuntime.cpp
   LoopUtils.cpp
   LoopVersioning.cpp
-  LoopWalk.cpp
   LowerAtomic.cpp
   LowerGlobalDtors.cpp
   LowerIFunc.cpp
