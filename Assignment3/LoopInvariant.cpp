@@ -97,6 +97,7 @@ bool dominatesExit(Instruction* i,DominatorTree& DT, Loop& L){
     }
     for(auto block : exitBB){
         if(!DT.dominates(i->getParent(),block)){
+            outs()<<"non domina le uscite "<<*i<<" "<< block->getName() <<"\n";
             return false;
         }
     }
@@ -105,11 +106,23 @@ bool dominatesExit(Instruction* i,DominatorTree& DT, Loop& L){
 /*
 * Funzione che verifica se un'istruzione candidata alla code motion domina tutti i suoi usi. Si verificano gli usi e se uno di questi non è dominato ritorna falso.
 */
-bool dominatesUse(Instruction* i, DominatorTree& DT){
+bool dominatesUse(Instruction* i, DominatorTree& DT, Loop &L){
 
     for(auto IterU=i->use_begin();IterU!=i->use_end();IterU++){
-        if(Instruction* use = dyn_cast <Instruction>(IterU->getUser())){
+        if(PHINode *phiNode = dyn_cast<PHINode>(IterU->getUser())){
+            //Itera gli incoming value e se il blocco della PHI domina tutti gli incoming block ritorna vero 
+            for(auto IterPHI=0 ;IterPHI<phiNode->getNumIncomingValues();IterPHI++){
+                if(phiNode->getIncomingValue(IterPHI)== i){
+                    BasicBlock *IncomingBlock=phiNode->getIncomingBlock(IterPHI);
+                    if(!DT.dominates(i->getParent(),IncomingBlock)){
+                        outs() <<"non domina gli gli incoming vlock "<<"\n";
+                        return false;
+                    }
+                }
+            }    
+        }else if(Instruction* use = dyn_cast <Instruction>(IterU->getUser())){
             if(!DT.dominates(i,use)){
+                outs() <<"non domina gli usi " << *use <<"\n";
                 return false;
             }
         }
@@ -123,12 +136,14 @@ bool isInstrDead(Instruction *i, Loop  &L){
     for(auto IterU=i->use_begin();IterU!=i->use_end();IterU++){
         if (Instruction* use = dyn_cast <Instruction>(IterU->getUser())){
             if(!L.contains(use->getParent())){
+                outs() <<"non dead " << *i <<"\n";
                 return false;
             }
         }
     }
     return true;
 }
+
 /*
 * Funzione che stampa tutte le istruzioni del Loop(L).
 */
@@ -145,6 +160,7 @@ void printInstr(Loop& L){
 PreservedAnalyses LoopInvariant::run(Loop &L, LoopAnalysisManager &LAM, LoopStandardAnalysisResults &LAR, LPMUpdater &LU){
     SmallVector <Instruction*> invariants, preHeader;
     DominatorTree &DT = LAR.DT;
+    DT.print(outs());
     BasicBlock *PreHeader = L.getLoopPreheader();
     //Se il Loop è in forma semplificata si potrà eseguire il Loop Invariant Code Motion.
     if(L.isLoopSimplifyForm()){
@@ -168,8 +184,8 @@ PreservedAnalyses LoopInvariant::run(Loop &L, LoopAnalysisManager &LAM, LoopStan
         *In tal caso potranno essere messe nel preheader.
         */
         for(auto instr : invariants){
-            outs() << instr <<"\n";
-            if((dominatesExit(instr, DT, L) || isInstrDead(instr, L))&& dominatesUse(instr,DT)){ 
+            outs() << *instr <<"\n";
+            if(((dominatesExit(instr, DT, L)|| isInstrDead(instr, L))&& dominatesUse(instr,DT,L))){ 
                 preHeader.push_back(instr);
             }
         }
